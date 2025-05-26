@@ -198,18 +198,29 @@ export function AccountForm({ account, onSubmit, onCancel, isLoading }: AccountF
         <div>
           <Label htmlFor="platform" className="block text-sm font-medium mb-1">Plataforma *</Label>
           <div className="flex gap-2">
-            <Select value={formData.platform} onValueChange={(value) => handleInputChange("platform", value)}>
-              <SelectTrigger className="flex-1">
-                <SelectValue placeholder="Seleccionar plataforma" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Netflix">Netflix</SelectItem>
-                <SelectItem value="Disney+">Disney+</SelectItem>
-                <SelectItem value="HBO Max">HBO Max</SelectItem>
-                <SelectItem value="Amazon Prime">Amazon Prime</SelectItem>
-                <SelectItem value="Spotify">Spotify</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex-1">
+              {formData.platform && !["Netflix", "Disney+", "HBO Max", "Amazon Prime", "Spotify"].includes(formData.platform) ? (
+                <Input
+                  value={formData.platform}
+                  onChange={(e) => handleInputChange("platform", e.target.value)}
+                  placeholder="Plataforma personalizada"
+                  className="w-full"
+                />
+              ) : (
+                <Select value={formData.platform} onValueChange={(value) => handleInputChange("platform", value)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Seleccionar plataforma" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Netflix">Netflix</SelectItem>
+                    <SelectItem value="Disney+">Disney+</SelectItem>
+                    <SelectItem value="HBO Max">HBO Max</SelectItem>
+                    <SelectItem value="Amazon Prime">Amazon Prime</SelectItem>
+                    <SelectItem value="Spotify">Spotify</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
             <Button 
               type="button" 
               variant="outline" 
@@ -220,6 +231,7 @@ export function AccountForm({ account, onSubmit, onCancel, isLoading }: AccountF
                   handleInputChange("platform", newPlatform.trim());
                 }
               }}
+              title="Agregar nueva plataforma"
             >
               <Plus className="h-4 w-4" />
             </Button>
