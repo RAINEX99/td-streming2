@@ -1,0 +1,157 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --background: 248 250 252; /* #f8fafc */
+  --foreground: 30 41 59; /* #1e293b */
+  --muted: 248 250 252; /* #f8fafc */
+  --muted-foreground: 100 116 139; /* #64748b */
+  --popover: 255 255 255; /* #ffffff */
+  --popover-foreground: 30 41 59; /* #1e293b */
+  --card: 255 255 255; /* #ffffff */
+  --card-foreground: 30 41 59; /* #1e293b */
+  --border: 226 232 240; /* #e2e8f0 */
+  --input: 226 232 240; /* #e2e8f0 */
+  --primary: 59 130 246; /* #3b82f6 */
+  --primary-foreground: 248 250 252; /* #f8fafc */
+  --secondary: 241 245 249; /* #f1f5f9 */
+  --secondary-foreground: 15 23 42; /* #0f172a */
+  --accent: 241 245 249; /* #f1f5f9 */
+  --accent-foreground: 15 23 42; /* #0f172a */
+  --destructive: 239 68 68; /* #ef4444 */
+  --destructive-foreground: 248 250 252; /* #f8fafc */
+  --ring: 59 130 246; /* #3b82f6 */
+  --radius: 0.5rem;
+
+  /* Custom theme variables */
+  --bg-primary: 248 250 252; /* #f8fafc */
+  --bg-secondary: 255 255 255; /* #ffffff */
+  --text-primary: 30 41 59; /* #1e293b */
+  --text-secondary: 100 116 139; /* #64748b */
+  --accent: 59 130 246; /* #3b82f6 */
+}
+
+.dark {
+  --background: 15 23 42; /* #0f172a */
+  --foreground: 241 245 249; /* #f1f5f9 */
+  --muted: 30 41 59; /* #1e293b */
+  --muted-foreground: 148 163 184; /* #94a3b8 */
+  --popover: 15 23 42; /* #0f172a */
+  --popover-foreground: 241 245 249; /* #f1f5f9 */
+  --card: 30 41 59; /* #1e293b */
+  --card-foreground: 241 245 249; /* #f1f5f9 */
+  --border: 51 65 85; /* #334155 */
+  --input: 51 65 85; /* #334155 */
+  --primary: 96 165 250; /* #60a5fa */
+  --primary-foreground: 15 23 42; /* #0f172a */
+  --secondary: 51 65 85; /* #334155 */
+  --secondary-foreground: 241 245 249; /* #f1f5f9 */
+  --accent: 51 65 85; /* #334155 */
+  --accent-foreground: 241 245 249; /* #f1f5f9 */
+  --destructive: 220 38 38; /* #dc2626 */
+  --destructive-foreground: 248 250 252; /* #f8fafc */
+  --ring: 96 165 250; /* #60a5fa */
+
+  /* Custom theme variables */
+  --bg-primary: 15 23 42; /* #0f172a */
+  --bg-secondary: 30 41 59; /* #1e293b */
+  --text-primary: 241 245 249; /* #f1f5f9 */
+  --text-secondary: 148 163 184; /* #94a3b8 */
+  --accent: 96 165 250; /* #60a5fa */
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Poppins', sans-serif;
+    transition: background-color 0.3s, color 0.3s;
+  }
+}
+
+@layer components {
+  .card-hover:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  }
+
+  .status-active {
+    background-color: rgba(34, 197, 94, 0.2);
+    color: rgb(21, 128, 61);
+  }
+
+  .status-expiring {
+    background-color: rgba(234, 179, 8, 0.2);
+    color: rgb(161, 98, 7);
+  }
+
+  .status-expired {
+    background-color: rgba(239, 68, 68, 0.2);
+    color: rgb(185, 28, 28);
+  }
+
+  .db-status-connected {
+    background-color: rgba(34, 197, 94, 0.1);
+    color: rgb(21, 128, 61);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+  }
+
+  .db-status-disconnected {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: rgb(185, 28, 28);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+  }
+
+  .db-status-connecting {
+    background-color: rgba(234, 179, 8, 0.1);
+    color: rgb(161, 98, 7);
+    border: 1px solid rgba(234, 179, 8, 0.3);
+  }
+
+  .pulse-slow {
+    animation: pulse 2s infinite;
+  }
+
+  .skeleton {
+    background: linear-gradient(90deg, hsl(var(--muted)) 25%, hsl(var(--border)) 50%, hsl(var(--muted)) 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+  }
+
+  @keyframes loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  .slide-in {
+    animation: slideIn 0.3s forwards;
+  }
+
+  @keyframes slideIn {
+    from {
+      transform: translateY(-20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .notification {
+    animation: fadeInOut 5s forwards;
+  }
+
+  @keyframes fadeInOut {
+    0% { opacity: 0; transform: translateY(-20px); }
+    10% { opacity: 1; transform: translateY(0); }
+    90% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-20px); }
+  }
+}
