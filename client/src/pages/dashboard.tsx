@@ -11,11 +11,12 @@ import { useAccounts } from "@/hooks/use-accounts";
 import { useDatabase } from "@/hooks/use-database";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Database, FolderSync, FileDown, FileSpreadsheet, Upload, Clock, Sun, Moon, Search } from "lucide-react";
+import type { StreamingAccount } from "@shared/schema";
 
 export default function Dashboard() {
   const [showConfig, setShowConfig] = useState(false);
   const [showAccountForm, setShowAccountForm] = useState(false);
-  const [editingAccount, setEditingAccount] = useState(null);
+  const [editingAccount, setEditingAccount] = useState<StreamingAccount | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [platformFilter, setPlatformFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
@@ -45,7 +46,7 @@ export default function Dashboard() {
     document.documentElement.classList.toggle("dark", newTheme === "dark");
   };
 
-  const handleCreateAccount = async (data) => {
+  const handleCreateAccount = async (data: any) => {
     try {
       await createAccountMutation.mutateAsync(data);
       setShowAccountForm(false);
@@ -55,7 +56,7 @@ export default function Dashboard() {
     }
   };
 
-  const handleUpdateAccount = async (data) => {
+  const handleUpdateAccount = async (data: any) => {
     if (!editingAccount) return;
     
     try {
@@ -68,7 +69,7 @@ export default function Dashboard() {
     }
   };
 
-  const handleDeleteAccount = async (id) => {
+  const handleDeleteAccount = async (id: number) => {
     try {
       await deleteAccountMutation.mutateAsync(id);
       toast({ title: "Cuenta eliminada exitosamente" });
@@ -86,7 +87,7 @@ export default function Dashboard() {
     }
   };
 
-  const handleImport = async (event) => {
+  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -211,7 +212,7 @@ export default function Dashboard() {
                 <SelectValue placeholder="Todas las plataformas" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todas las plataformas</SelectItem>
+                <SelectItem value="all">Todas las plataformas</SelectItem>
                 <SelectItem value="Netflix">Netflix</SelectItem>
                 <SelectItem value="Disney+">Disney+</SelectItem>
                 <SelectItem value="HBO Max">HBO Max</SelectItem>
@@ -225,7 +226,7 @@ export default function Dashboard() {
                 <SelectValue placeholder="Todos los tipos" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos los tipos</SelectItem>
+                <SelectItem value="all">Todos los tipos</SelectItem>
                 <SelectItem value="Perfil">Perfil</SelectItem>
                 <SelectItem value="Cuenta completa">Cuenta completa</SelectItem>
               </SelectContent>

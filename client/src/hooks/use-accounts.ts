@@ -14,8 +14,8 @@ export function useAccounts(filters: AccountFilters = {}) {
   // Build query params
   const queryParams = new URLSearchParams();
   if (filters.search) queryParams.append('search', filters.search);
-  if (filters.platform) queryParams.append('platform', filters.platform);
-  if (filters.accountType) queryParams.append('accountType', filters.accountType);
+  if (filters.platform && filters.platform !== 'all') queryParams.append('platform', filters.platform);
+  if (filters.accountType && filters.accountType !== 'all') queryParams.append('accountType', filters.accountType);
 
   // Fetch accounts
   const accountsQuery = useQuery<StreamingAccount[]>({
