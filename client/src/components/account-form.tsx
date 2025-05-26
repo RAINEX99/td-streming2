@@ -1,12 +1,10 @@
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { insertStreamingAccountSchema } from "@shared/schema";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Save, X } from "lucide-react";
+import { Save, X, Plus } from "lucide-react";
 import type { StreamingAccount } from "@shared/schema";
 
 interface AccountFormProps {
@@ -17,183 +15,309 @@ interface AccountFormProps {
 }
 
 export function AccountForm({ account, onSubmit, onCancel, isLoading }: AccountFormProps) {
-  const form = useForm({
-    resolver: zodResolver(insertStreamingAccountSchema),
-    defaultValues: account ? {
-      clientName: account.clientName,
-      platform: account.platform,
-      accountType: account.accountType,
-      deliveryDate: account.deliveryDate,
-      expirationDate: account.expirationDate,
-      credentials: account.credentials ? JSON.stringify(account.credentials, null, 2) : "",
-      notes: account.notes || "",
-      price: account.price || "",
-      status: account.status,
-    } : {
-      clientName: "",
-      platform: "",
-      accountType: "",
-      deliveryDate: "",
-      expirationDate: "",
-      credentials: "",
-      notes: "",
-      price: "",
-      status: "active",
-    }
+  const [formData, setFormData] = useState({
+    clientName: "",
+    clientEmail: "",
+    clientPhone: "",
+    accountPassword: "",
+    accountType: "",
+    profileNumber: "",
+    platform: "",
+    deliveryDate: "",
+    durationValue: "",
+    durationUnit: "months",
+    expirationDate: "",
+    replaced: "no",
+    replacementReason: "",
   });
 
-  const handleSubmit = (data: any) => {
-    // Parse credentials as JSON if provided
-    if (data.credentials) {
-      try {
-        data.credentials = JSON.parse(data.credentials);
-      } catch {
-        // If JSON parsing fails, store as text
-        data.credentials = { text: data.credentials };
+  const [showProfileNumber, setShowProfileNumber] = useState(false);
+  const [showReplacementReason, setShowReplacementReason] = useState(false);
+
+  useEffect(() => {
+    if (account) {
+      setFormData({
+        clientName: account.clientName,
+        clientEmail: "",
+        clientPhone: "",
+        accountPassword: "",
+        accountType: account.accountType,
+        profileNumber: "",
+        platform: account.platform,
+        deliveryDate: account.deliveryDate,
+        durationValue: "",
+        durationUnit: "months",
+        expirationDate: account.expirationDate,
+        replaced: "no",
+        replacementReason: "",
+      });
+    }
+  }, [account]);
+
+  useEffect(() => {
+    setShowProfileNumber(formData.accountType === "Perfil");
+  }, [formData.accountType]);
+
+  useEffect(() => {
+    setShowReplacementReason(formData.replaced === "yes");
+  }, [formData.replaced]);
+
+  useEffect(() => {
+    if (formData.deliveryDate && formData.durationValue && formData.durationUnit) {
+      const deliveryDate = new Date(formData.deliveryDate);
+      const duration = parseInt(formData.durationValue);
+      
+      if (!isNaN(duration)) {
+        let expirationDate = new Date(deliveryDate);
+        
+        switch (formData.durationUnit) {
+          case "days":
+            expirationDate.setDate(expirationDate.getDate() + duration);
+            break;
+          case "weeks":
+            expirationDate.setDate(expirationDate.getDate() + (duration * 7));
+            break;
+          case "months":
+            expirationDate.setMonth(expirationDate.getMonth() + duration);
+            break;
+          case "years":
+            expirationDate.setFullYear(expirationDate.getFullYear() + duration);
+            break;
+        }
+        
+        setFormData(prev => ({
+          ...prev,
+          expirationDate: expirationDate.toISOString().split('T')[0]
+        }));
       }
     }
+  }, [formData.deliveryDate, formData.durationValue, formData.durationUnit]);
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
     
-    onSubmit(data);
+    const submitData = {
+      clientName: formData.clientName,
+      platform: formData.platform,
+      accountType: formData.accountType,
+      deliveryDate: formData.deliveryDate,
+      expirationDate: formData.expirationDate,
+      credentials: {
+        email: formData.clientEmail,
+        phone: formData.clientPhone,
+        password: formData.accountPassword,
+        profileNumber: formData.profileNumber
+      },
+      notes: formData.replacementReason,
+      status: "active"
+    };
+    
+    onSubmit(submitData);
   };
 
   return (
-    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit} className="p-6 space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <Label htmlFor="clientName">Nombre del Cliente</Label>
+          <Label htmlFor="client-name" className="block text-sm font-medium mb-1">Nombre del Cliente *</Label>
           <Input
-            id="clientName"
-            {...form.register("clientName")}
-            className="mt-1"
+            id="client-name"
+            type="text"
+            required
+            value={formData.clientName}
+            onChange={(e) => handleInputChange("clientName", e.target.value)}
+            className="w-full"
           />
-          {form.formState.errors.clientName && (
-            <p className="text-sm text-red-600 mt-1">{form.formState.errors.clientName.message}</p>
-          )}
         </div>
         
         <div>
-          <Label htmlFor="platform">Plataforma</Label>
-          <Select
-            onValueChange={(value) => form.setValue("platform", value)}
-            defaultValue={form.getValues("platform")}
-          >
-            <SelectTrigger className="mt-1">
-              <SelectValue placeholder="Selecciona una plataforma" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Netflix">Netflix</SelectItem>
-              <SelectItem value="Disney+">Disney+</SelectItem>
-              <SelectItem value="HBO Max">HBO Max</SelectItem>
-              <SelectItem value="Amazon Prime">Amazon Prime</SelectItem>
-              <SelectItem value="Spotify">Spotify</SelectItem>
-              <SelectItem value="YouTube Premium">YouTube Premium</SelectItem>
-              <SelectItem value="Apple Music">Apple Music</SelectItem>
-              <SelectItem value="Paramount+">Paramount+</SelectItem>
-            </SelectContent>
-          </Select>
-          {form.formState.errors.platform && (
-            <p className="text-sm text-red-600 mt-1">{form.formState.errors.platform.message}</p>
-          )}
+          <Label htmlFor="client-email" className="block text-sm font-medium mb-1">Correo Electrónico</Label>
+          <Input
+            id="client-email"
+            type="email"
+            value={formData.clientEmail}
+            onChange={(e) => handleInputChange("clientEmail", e.target.value)}
+            className="w-full"
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="client-phone" className="block text-sm font-medium mb-1">Número de Teléfono (opcional)</Label>
+          <Input
+            id="client-phone"
+            type="tel"
+            placeholder="+52 123 456 7890"
+            value={formData.clientPhone}
+            onChange={(e) => handleInputChange("clientPhone", e.target.value)}
+            className="w-full"
+          />
         </div>
         
         <div>
-          <Label htmlFor="accountType">Tipo de Cuenta</Label>
-          <Select
-            onValueChange={(value) => form.setValue("accountType", value)}
-            defaultValue={form.getValues("accountType")}
-          >
-            <SelectTrigger className="mt-1">
-              <SelectValue placeholder="Selecciona el tipo" />
+          <Label htmlFor="account-password" className="block text-sm font-medium mb-1">Contraseña (opcional)</Label>
+          <Input
+            id="account-password"
+            type="text"
+            value={formData.accountPassword}
+            onChange={(e) => handleInputChange("accountPassword", e.target.value)}
+            className="w-full"
+          />
+        </div>
+        
+        <div>
+          <Label htmlFor="account-type" className="block text-sm font-medium mb-1">Tipo de Cuenta *</Label>
+          <Select value={formData.accountType} onValueChange={(value) => handleInputChange("accountType", value)}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Seleccionar tipo" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="Perfil">Perfil</SelectItem>
+              <SelectItem value="Perfil">Perfil compartido</SelectItem>
               <SelectItem value="Cuenta completa">Cuenta completa</SelectItem>
             </SelectContent>
           </Select>
-          {form.formState.errors.accountType && (
-            <p className="text-sm text-red-600 mt-1">{form.formState.errors.accountType.message}</p>
-          )}
         </div>
         
-        <div>
-          <Label htmlFor="deliveryDate">Fecha de Entrega</Label>
-          <Input
-            id="deliveryDate"
-            type="date"
-            {...form.register("deliveryDate")}
-            className="mt-1"
-          />
-          {form.formState.errors.deliveryDate && (
-            <p className="text-sm text-red-600 mt-1">{form.formState.errors.deliveryDate.message}</p>
-          )}
-        </div>
-        
-        <div>
-          <Label htmlFor="expirationDate">Fecha de Expiración</Label>
-          <Input
-            id="expirationDate"
-            type="date"
-            {...form.register("expirationDate")}
-            className="mt-1"
-          />
-          {form.formState.errors.expirationDate && (
-            <p className="text-sm text-red-600 mt-1">{form.formState.errors.expirationDate.message}</p>
-          )}
-        </div>
-        
-        <div>
-          <Label htmlFor="price">Precio (Opcional)</Label>
-          <Input
-            id="price"
-            type="number"
-            step="0.01"
-            placeholder="0.00"
-            {...form.register("price")}
-            className="mt-1"
-          />
-          {form.formState.errors.price && (
-            <p className="text-sm text-red-600 mt-1">{form.formState.errors.price.message}</p>
-          )}
-        </div>
-      </div>
-      
-      <div>
-        <Label htmlFor="credentials">Credenciales de Acceso</Label>
-        <Textarea
-          id="credentials"
-          {...form.register("credentials")}
-          rows={4}
-          placeholder="Usuario: ejemplo@email.com&#10;Contraseña: ••••••••&#10;PIN: 1234"
-          className="mt-1"
-        />
-        <p className="text-xs text-muted-foreground mt-1">Los datos se almacenarán de forma segura en la base de datos</p>
-        {form.formState.errors.credentials && (
-          <p className="text-sm text-red-600 mt-1">{form.formState.errors.credentials.message}</p>
+        {showProfileNumber && (
+          <div>
+            <Label htmlFor="profile-number" className="block text-sm font-medium mb-1">Número de Perfil Asignado *</Label>
+            <Input
+              id="profile-number"
+              type="number"
+              min="1"
+              value={formData.profileNumber}
+              onChange={(e) => handleInputChange("profileNumber", e.target.value)}
+              className="w-full"
+            />
+          </div>
         )}
+        
+        <div>
+          <Label htmlFor="platform" className="block text-sm font-medium mb-1">Plataforma *</Label>
+          <div className="flex gap-2">
+            <Select value={formData.platform} onValueChange={(value) => handleInputChange("platform", value)}>
+              <SelectTrigger className="flex-1">
+                <SelectValue placeholder="Seleccionar plataforma" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Netflix">Netflix</SelectItem>
+                <SelectItem value="Disney+">Disney+</SelectItem>
+                <SelectItem value="HBO Max">HBO Max</SelectItem>
+                <SelectItem value="Amazon Prime">Amazon Prime</SelectItem>
+                <SelectItem value="Spotify">Spotify</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button type="button" variant="outline" size="icon">
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+        
+        <div>
+          <Label htmlFor="delivery-date" className="block text-sm font-medium mb-1">Fecha de Entrega *</Label>
+          <Input
+            id="delivery-date"
+            type="date"
+            required
+            value={formData.deliveryDate}
+            onChange={(e) => handleInputChange("deliveryDate", e.target.value)}
+            className="w-full"
+          />
+        </div>
+        
+        <div>
+          <Label className="block text-sm font-medium mb-1">Duración de la Suscripción *</Label>
+          <div className="flex gap-2">
+            <Input
+              type="number"
+              min="1"
+              required
+              placeholder="Duración"
+              value={formData.durationValue}
+              onChange={(e) => handleInputChange("durationValue", e.target.value)}
+              className="flex-1"
+            />
+            <Select value={formData.durationUnit} onValueChange={(value) => handleInputChange("durationUnit", value)}>
+              <SelectTrigger className="w-24">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="days">Días</SelectItem>
+                <SelectItem value="weeks">Semanas</SelectItem>
+                <SelectItem value="months">Meses</SelectItem>
+                <SelectItem value="years">Años</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        
+        <div>
+          <Label htmlFor="expiration-date" className="block text-sm font-medium mb-1">Fecha de Expiración</Label>
+          <Input
+            id="expiration-date"
+            type="date"
+            disabled
+            value={formData.expirationDate}
+            className="w-full bg-muted"
+          />
+        </div>
       </div>
       
-      <div>
-        <Label htmlFor="notes">Notas Adicionales</Label>
-        <Textarea
-          id="notes"
-          {...form.register("notes")}
-          rows={3}
-          placeholder="Información adicional sobre la cuenta..."
-          className="mt-1"
-        />
-        {form.formState.errors.notes && (
-          <p className="text-sm text-red-600 mt-1">{form.formState.errors.notes.message}</p>
-        )}
+      <div className="border-t pt-4">
+        <h4 className="font-medium mb-3">Información de Reposición</h4>
+        <div className="space-y-4">
+          <div>
+            <Label className="block text-sm font-medium mb-2">¿La cuenta fue repuesta?</Label>
+            <div className="flex gap-4">
+              <label className="inline-flex items-center">
+                <input
+                  type="radio"
+                  name="replaced"
+                  value="no"
+                  checked={formData.replaced === "no"}
+                  onChange={(e) => handleInputChange("replaced", e.target.value)}
+                  className="form-radio text-blue-600"
+                />
+                <span className="ml-2">No</span>
+              </label>
+              <label className="inline-flex items-center">
+                <input
+                  type="radio"
+                  name="replaced"
+                  value="yes"
+                  checked={formData.replaced === "yes"}
+                  onChange={(e) => handleInputChange("replaced", e.target.value)}
+                  className="form-radio text-blue-600"
+                />
+                <span className="ml-2">Sí</span>
+              </label>
+            </div>
+          </div>
+          
+          {showReplacementReason && (
+            <div>
+              <Label htmlFor="replacement-reason" className="block text-sm font-medium mb-1">Motivo de la Reposición</Label>
+              <Textarea
+                id="replacement-reason"
+                rows={3}
+                value={formData.replacementReason}
+                onChange={(e) => handleInputChange("replacementReason", e.target.value)}
+                className="w-full"
+              />
+            </div>
+          )}
+        </div>
       </div>
       
-      <div className="flex justify-end space-x-3 pt-4 border-t">
+      <div className="flex justify-end gap-3">
         <Button type="button" variant="outline" onClick={onCancel}>
-          <X className="h-4 w-4 mr-2" />
           Cancelar
         </Button>
         <Button type="submit" disabled={isLoading}>
-          <Save className="h-4 w-4 mr-2" />
-          {isLoading ? "Guardando..." : "Guardar en Base de Datos"}
+          {isLoading ? "Guardando..." : "Guardar"}
         </Button>
       </div>
     </form>
