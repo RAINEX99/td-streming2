@@ -1,0 +1,1301 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gestión de Cuentas de Streaming</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .theme-light {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --accent: #3b82f6;
+        }
+        
+        .theme-dark {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --accent: #60a5fa;
+        }
+        
+        .status-active {
+            background-color: rgba(34, 197, 94, 0.2);
+            color: rgb(21, 128, 61);
+        }
+        
+        .status-expiring {
+            background-color: rgba(234, 179, 8, 0.2);
+            color: rgb(161, 98, 7);
+        }
+        
+        .status-expired {
+            background-color: rgba(239, 68, 68, 0.2);
+            color: rgb(185, 28, 28);
+        }
+        
+        .modal {
+            transition: opacity 0.3s ease;
+        }
+        
+        .slide-in {
+            animation: slideIn 0.3s forwards;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateY(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .notification {
+            animation: fadeInOut 5s forwards;
+        }
+        
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(-20px); }
+            10% { opacity: 1; transform: translateY(0); }
+            90% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-20px); }
+        }
+    </style>
+</head>
+<body class="theme-light bg-[var(--bg-primary)] text-[var(--text-primary)]">
+    <!-- Notificaciones -->
+    <div id="notification-container" class="fixed top-4 right-4 z-50 w-80 space-y-2"></div>
+
+    <div class="min-h-screen p-4 md:p-8">
+        <!-- Cabecera -->
+        <div class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold">TD-Streaming</h1>
+                <p class="text-[var(--text-secondary)]">Administra tus cuentas de streaming</p>
+            </div>
+            <button id="theme-toggle" class="p-2 rounded-full bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-gray-200 dark:hover:bg-gray-700">
+                <i class="fas fa-moon dark:hidden"></i>
+                <i class="fas fa-sun hidden dark:block"></i>
+            </button>
+        </div>
+
+        <!-- Tablero de estadísticas -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div class="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-md transition-all duration-300 card-hover border-l-4 border-blue-500">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-[var(--text-secondary)] text-sm">Total de Cuentas</p>
+                        <h2 id="total-accounts" class="text-2xl font-bold">0</h2>
+                    </div>
+                    <div class="bg-blue-100 dark:bg-blue-900 p-3 rounded-full">
+                        <i class="fas fa-users text-blue-500"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-md transition-all duration-300 card-hover border-l-4 border-green-500">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-[var(--text-secondary)] text-sm">Cuentas Activas</p>
+                        <h2 id="active-accounts" class="text-2xl font-bold">0</h2>
+                    </div>
+                    <div class="bg-green-100 dark:bg-green-900 p-3 rounded-full">
+                        <i class="fas fa-check-circle text-green-500"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-md transition-all duration-300 card-hover border-l-4 border-yellow-500">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-[var(--text-secondary)] text-sm">Por Vencer</p>
+                        <h2 id="expiring-accounts" class="text-2xl font-bold">0</h2>
+                    </div>
+                    <div class="bg-yellow-100 dark:bg-yellow-900 p-3 rounded-full">
+                        <i class="fas fa-exclamation-circle text-yellow-500"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-md transition-all duration-300 card-hover border-l-4 border-red-500">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-[var(--text-secondary)] text-sm">Cuentas Expiradas</p>
+                        <h2 id="expired-accounts" class="text-2xl font-bold">0</h2>
+                    </div>
+                    <div class="bg-red-100 dark:bg-red-900 p-3 rounded-full">
+                        <i class="fas fa-times-circle text-red-500"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controles y filtros -->
+        <div class="bg-[var(--bg-secondary)] p-4 rounded-xl shadow-md mb-6">
+            <div class="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between mb-4">
+                <div class="flex flex-wrap gap-2">
+                    <button id="new-account-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors">
+                        <i class="fas fa-plus"></i> Nueva Cuenta
+                    </button>
+
+		    <button id="export-btn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors">
+   			<i class="fas fa-file-export"></i> Exportar
+			</button>
+
+		<button id="export-excel-btn" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors">
+    			<i class="fas fa-file-excel"></i> Exportar a Excel
+		    </button>
+
+			<label for="import-file" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors cursor-pointer">
+    			<i class="fas fa-file-import"></i> Importar
+    			<input id="import-file" type="file" accept=".json" class="hidden">
+			</label>
+                    <button id="expiring-filter-btn" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors">
+                        <i class="fas fa-clock"></i> Por Vencer
+                    </button>
+                </div>
+                
+                <div class="flex flex-wrap gap-2 w-full md:w-auto">
+                    <select id="platform-filter" class="bg-[var(--bg-primary)] border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-[var(--text-primary)]">
+                        <option value="">Todas las plataformas</option>
+                        <option value="Netflix">Netflix</option>
+                        <option value="Disney+">Disney+</option>
+                        <option value="HBO Max">HBO Max</option>
+                        <option value="Amazon Prime">Amazon Prime</option>
+                        <option value="Spotify">Spotify</option>
+                    </select>
+                    
+                    <select id="type-filter" class="bg-[var(--bg-primary)] border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-[var(--text-primary)]">
+                        <option value="">Todos los tipos</option>
+                        <option value="Perfil">Perfil</option>
+                        <option value="Cuenta completa">Cuenta completa</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="relative">
+                <input id="search-input" type="text" placeholder="Buscar por nombre de cliente..." class="w-full bg-[var(--bg-primary)] border border-gray-300 dark:border-gray-700 rounded-lg pl-10 pr-4 py-2 text-[var(--text-primary)]">
+                <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+            </div>
+        </div>
+
+        <!-- Tabla de cuentas -->
+        <div class="bg-[var(--bg-secondary)] rounded-xl shadow-md overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead class="bg-gray-50 dark:bg-gray-800">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Cliente</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Plataforma</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tipo</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Fecha Entrega</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Fecha Expiración</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Días Restantes</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Estado</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="accounts-table-body" class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                        <!-- Las filas se generarán dinámicamente con JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div id="empty-state" class="py-12 text-center hidden">
+                <div class="mx-auto w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
+                    <i class="fas fa-folder-open text-3xl text-gray-400"></i>
+                </div>
+                <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">No hay cuentas registradas</h3>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Comienza agregando una nueva cuenta con el botón "Nueva Cuenta"</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para nueva cuenta -->
+    <div id="account-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto slide-in">
+            <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                <h3 id="modal-title" class="text-xl font-semibold text-gray-900 dark:text-white">Nueva Cuenta</h3>
+                <button id="close-modal" class="text-gray-400 hover:text-gray-500">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <form id="account-form" class="p-6 space-y-6">
+                <input type="hidden" id="account-id">
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="client-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre del Cliente *</label>
+                        <input type="text" id="client-name" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                    </div>
+                    
+                    <div>
+                        <label for="client-email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Correo Electrónico</label>
+                        <input type="email" id="client-email" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                    </div>
+
+<div>
+    <label for="client-phone" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Número de Teléfono (opcional)</label>
+    <input type="tel" id="client-phone" pattern="[0-9+\-\s()]*" placeholder="+52 123 456 7890" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+</div>
+                    
+                    <div>
+                        <label for="account-password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Contraseña (opcional)</label>
+                        <input type="text" id="account-password" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                    </div>
+                    
+                    <div>
+                        <label for="account-type" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo de Cuenta *</label>
+                        <select id="account-type" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                            <option value="">Seleccionar tipo</option>
+                            <option value="Perfil">Perfil compartido</option>
+                            <option value="Cuenta completa">Cuenta completa</option>
+                        </select>
+                    </div>
+                    
+                    <div id="profile-number-container" class="hidden">
+                        <label for="profile-number" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Número de Perfil Asignado *</label>
+                        <input type="number" id="profile-number" min="1" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                    </div>
+                    
+                    <div>
+                        <label for="platform" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Plataforma *</label>
+                        <div class="flex gap-2">
+                            <select id="platform" required class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                                <option value="">Seleccionar plataforma</option>
+                                <option value="Netflix">Netflix</option>
+                                <option value="Disney+">Disney+</option>
+                                <option value="HBO Max">HBO Max</option>
+                                <option value="Amazon Prime">Amazon Prime</option>
+                                <option value="Spotify">Spotify</option>
+                            </select>
+                            <button type="button" id="add-platform-btn" class="px-3 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label for="delivery-date" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Fecha de Entrega *</label>
+                        <input type="date" id="delivery-date" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Duración de la Suscripción *</label>
+                        <div class="flex gap-2">
+                            <input type="number" id="duration-value" min="1" required class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="Duración">
+                            <select id="duration-unit" required class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                                <option value="days">Días</option>
+                                <option value="weeks">Semanas</option>
+                                <option value="months">Meses</option>
+                                <option value="years">Años</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label for="expiration-date" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Fecha de Expiración</label>
+                        <input type="date" id="expiration-date" disabled class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-white">
+                    </div>
+                </div>
+                
+                <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
+                    <h4 class="font-medium text-gray-900 dark:text-white mb-3">Información de Reposición</h4>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">¿La cuenta fue repuesta?</label>
+                            <div class="flex gap-4">
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="replaced" value="no" checked class="form-radio text-blue-600">
+                                    <span class="ml-2 text-gray-700 dark:text-gray-300">No</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="replaced" value="yes" class="form-radio text-blue-600">
+                                    <span class="ml-2 text-gray-700 dark:text-gray-300">Sí</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div id="replacement-reason-container" class="hidden">
+                            <label for="replacement-reason" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Motivo de la Reposición</label>
+                            <textarea id="replacement-reason" rows="3" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"></textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end gap-3">
+                    <button type="button" id="cancel-form" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal para agregar plataforma -->
+    <div id="platform-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md slide-in">
+            <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                <h3 class="text-xl font-semibold text-gray-900 dark:text-white">Agregar Plataforma</h3>
+                <button id="close-platform-modal" class="text-gray-400 hover:text-gray-500">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <form id="platform-form" class="p-6 space-y-6">
+                <div>
+                    <label for="new-platform" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre de la Plataforma</label>
+                    <input type="text" id="new-platform" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                </div>
+                
+                <div class="flex justify-end gap-3">
+                    <button type="button" id="cancel-platform" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Agregar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal para ver detalles de cuenta -->
+    <div id="view-account-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-2xl slide-in">
+            <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                <h3 class="text-xl font-semibold text-gray-900 dark:text-white">Detalles de la Cuenta</h3>
+                <button id="close-view-modal" class="text-gray-400 hover:text-gray-500">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">Cliente</h4>
+                        <p id="view-client-name" class="mt-1 text-gray-900 dark:text-white"></p>
+                    </div>
+                    
+                    <div>
+                        <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">Correo Electrónico</h4>
+                        <p id="view-client-email" class="mt-1 text-gray-900 dark:text-white"></p>
+                   </div>
+
+		    <div>
+    			<h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">Número de Teléfono</h4>
+    			<p id="view-client-phone" class="mt-1 text-gray-900 dark:text-white">No especificado</p>
+		   </div>
+                    
+                    <div>
+                        <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">Plataforma</h4>
+                        <p id="view-platform" class="mt-1 text-gray-900 dark:text-white"></p>
+                    </div>
+                    
+                    <div>
+                        <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">Tipo de Cuenta</h4>
+                        <p id="view-account-type" class="mt-1 text-gray-900 dark:text-white"></p>
+                    </div>
+                    
+                    <div id="view-profile-container" class="hidden">
+                        <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">Número de Perfil</h4>
+                        <p id="view-profile-number" class="mt-1 text-gray-900 dark:text-white"></p>
+                    </div>
+                    
+                    <div>
+                        <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">Contraseña</h4>
+                        <div class="mt-1 flex items-center gap-2">
+                            <p id="view-password" class="text-gray-900 dark:text-white"></p>
+                            <button id="copy-password" class="text-blue-500 hover:text-blue-600">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">Fecha de Entrega</h4>
+                        <p id="view-delivery-date" class="mt-1 text-gray-900 dark:text-white"></p>
+                    </div>
+                    
+                    <div>
+                        <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">Fecha de Expiración</h4>
+                        <p id="view-expiration-date" class="mt-1 text-gray-900 dark:text-white"></p>
+                    </div>
+                    
+                    <div>
+                        <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">Días Restantes</h4>
+                        <p id="view-days-remaining" class="mt-1 text-gray-900 dark:text-white"></p>
+                    </div>
+                    
+                    <div>
+                        <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">Estado</h4>
+                        <p id="view-status" class="mt-1 inline-block px-2 py-1 rounded-full text-xs font-medium"></p>
+                    </div>
+                </div>
+                
+                <div id="view-replacement-container" class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 hidden">
+                    <h4 class="font-medium text-gray-900 dark:text-white mb-2">Información de Reposición</h4>
+                    <p id="view-replacement-reason" class="text-gray-700 dark:text-gray-300"></p>
+                </div>
+                
+                <div class="mt-6 flex justify-end">
+                    <button id="close-view-btn" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de confirmación para eliminar -->
+    <div id="delete-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md slide-in">
+            <div class="p-6">
+                <div class="flex items-center justify-center w-12 h-12 mx-auto bg-red-100 rounded-full mb-4">
+                    <i class="fas fa-exclamation-triangle text-red-600"></i>
+                </div>
+                <h3 class="text-lg font-medium text-center text-gray-900 dark:text-white mb-2">¿Eliminar esta cuenta?</h3>
+                <p class="text-center text-gray-500 dark:text-gray-400">Esta acción no se puede deshacer. ¿Estás seguro de que deseas eliminar esta cuenta?</p>
+                
+                <div class="mt-6 flex justify-center gap-3">
+                    <button id="cancel-delete" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">Cancelar</button>
+                    <button id="confirm-delete" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">Eliminar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Almacenamiento de datos
+        let accounts = JSON.parse(localStorage.getItem('streamingAccounts')) || [];
+        let platforms = JSON.parse(localStorage.getItem('platforms')) || [
+            'Netflix', 'Disney+', 'HBO Max', 'Amazon Prime', 'Spotify'
+        ];
+        let currentAccountId = null;
+        let deleteAccountId = null;
+        
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', () => {
+            // Configurar tema
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            setTheme(savedTheme);
+            
+            // Cargar datos
+            updatePlatformDropdowns();
+            renderAccounts();
+            updateDashboard();
+            checkExpiringAccounts();
+            
+            // Configurar eventos
+            setupEventListeners();
+            
+            // Establecer fecha de hoy como predeterminada
+            document.getElementById('delivery-date').valueAsDate = new Date();
+        });
+        
+        function setupEventListeners() {
+            // Tema
+            document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+            
+            // Botones principales
+            document.getElementById('new-account-btn').addEventListener('click', openNewAccountModal);
+            document.getElementById('expiring-filter-btn').addEventListener('click', filterExpiringAccounts);
+            
+            // Filtros
+            document.getElementById('platform-filter').addEventListener('change', renderAccounts);
+            document.getElementById('type-filter').addEventListener('change', renderAccounts);
+            document.getElementById('search-input').addEventListener('input', renderAccounts);
+            
+            // Modal de cuenta
+            document.getElementById('close-modal').addEventListener('click', closeAccountModal);
+            document.getElementById('cancel-form').addEventListener('click', closeAccountModal);
+            document.getElementById('account-form').addEventListener('submit', saveAccount);
+            document.getElementById('account-type').addEventListener('change', toggleProfileNumberField);
+            
+            // Cálculo de fecha de expiración
+            document.getElementById('delivery-date').addEventListener('change', calculateExpirationDate);
+            document.getElementById('duration-value').addEventListener('input', calculateExpirationDate);
+            document.getElementById('duration-unit').addEventListener('change', calculateExpirationDate);
+            
+            // Reposición
+            document.querySelectorAll('input[name="replaced"]').forEach(radio => {
+                radio.addEventListener('change', toggleReplacementReason);
+            });
+            
+            // Modal de plataforma
+            document.getElementById('add-platform-btn').addEventListener('click', openPlatformModal);
+            document.getElementById('close-platform-modal').addEventListener('click', closePlatformModal);
+            document.getElementById('cancel-platform').addEventListener('click', closePlatformModal);
+            document.getElementById('platform-form').addEventListener('submit', addPlatform);
+            
+            // Modal de vista
+            document.getElementById('close-view-modal').addEventListener('click', closeViewModal);
+            document.getElementById('close-view-btn').addEventListener('click', closeViewModal);
+            document.getElementById('copy-password').addEventListener('click', copyPassword);
+            
+            // Modal de eliminación
+            document.getElementById('cancel-delete').addEventListener('click', closeDeleteModal);
+            document.getElementById('confirm-delete').addEventListener('click', deleteAccount);
+	    
+	    // Botón Exportar
+    	    document.getElementById('export-btn').addEventListener('click', () => {
+            const dataStr = JSON.stringify(accounts, null, 2);
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'cuentas_streaming.json';
+              a.click();
+            URL.revokeObjectURL(url);
+            showNotification('Cuentas exportadas correctamente');
+            });
+
+            // Botón Importar
+            document.getElementById('import-file').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+           const reader = new FileReader();
+           reader.onload = (event) => {
+            try {
+                const importedData = JSON.parse(event.target.result);
+                if (!Array.isArray(importedData)) throw new Error('Formato inválido');
+
+                const existingIds = new Set(accounts.map(acc => acc.id));
+                let nuevas = 0;
+                importedData.forEach(account => {
+                    if (!existingIds.has(account.id)) {
+                        accounts.push(account);
+                        nuevas++;
+                    }
+                });
+
+                saveAccounts();
+                renderAccounts();
+                updateDashboard();
+                showNotification(`${nuevas} cuentas importadas correctamente`);
+                    } catch (err) {
+               showNotification('Error al importar el archivo', 'error');
+                console.error(err);
+               }
+              };
+           reader.readAsText(file);
+           });
+
+	      // Botón Exportar a Excel
+	      document.getElementById('export-excel-btn').addEventListener('click', () => {
+              if (!accounts.length) {
+              showNotification('No hay cuentas para exportar', 'warning');
+             return;
+    }
+
+     const data = accounts.map(account => ({
+           Cliente: account.clientName,
+           Correo: account.clientEmail || '',
+           Plataforma: account.platform,
+           Tipo: account.accountType + (account.profileNumber ? ` (${account.profileNumber})` : ''),
+           Contraseña: account.password || '',
+           Fecha_Entrega: account.deliveryDate,
+           Fecha_Expiración: account.expirationDate,
+           Días_Restantes: account.daysRemaining,
+           Estado: account.status,
+           Reposición: account.replaced ? 'Sí' : 'No',
+           Motivo_Reposición: account.replacementReason || ''
+          }));
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Cuentas');
+
+    XLSX.writeFile(workbook, 'cuentas_streaming.xlsx');
+    showNotification('Cuentas exportadas a Excel correctamente');
+});
+        }
+        
+        // Funciones de tema
+        function setTheme(theme) {
+            if (theme === 'dark') {
+                document.body.classList.add('theme-dark');
+                document.body.classList.remove('theme-light');
+            } else {
+                document.body.classList.add('theme-light');
+                document.body.classList.remove('theme-dark');
+            }
+            localStorage.setItem('theme', theme);
+        }
+        
+        function toggleTheme() {
+            const currentTheme = localStorage.getItem('theme') || 'light';
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            setTheme(newTheme);
+        }
+        
+        // Funciones de renderizado
+        function renderAccounts() {
+            const tableBody = document.getElementById('accounts-table-body');
+            const emptyState = document.getElementById('empty-state');
+            const platformFilter = document.getElementById('platform-filter').value;
+            const typeFilter = document.getElementById('type-filter').value;
+            const searchQuery = document.getElementById('search-input').value.toLowerCase();
+            
+            // Filtrar cuentas
+            let filteredAccounts = accounts;
+            
+            if (platformFilter) {
+                filteredAccounts = filteredAccounts.filter(account => account.platform === platformFilter);
+            }
+            
+            if (typeFilter) {
+                filteredAccounts = filteredAccounts.filter(account => account.accountType === typeFilter);
+            }
+            
+            if (searchQuery) {
+                filteredAccounts = filteredAccounts.filter(account => 
+                    account.clientName.toLowerCase().includes(searchQuery)
+                );
+            }
+            
+            // Actualizar días restantes y estado
+            filteredAccounts.forEach(account => {
+                updateAccountStatus(account);
+            });
+            
+            // Ordenar por fecha de expiración (más cercanas primero)
+            filteredAccounts.sort((a, b) => {
+                // Primero las expiradas, luego por vencer, luego activas
+                if (a.status !== b.status) {
+                    const statusOrder = { 'expired': 0, 'expiring': 1, 'active': 2 };
+                    return statusOrder[a.status] - statusOrder[b.status];
+                }
+                // Dentro del mismo estado, ordenar por fecha de expiración
+                return new Date(a.expirationDate) - new Date(b.expirationDate);
+            });
+            
+            // Mostrar estado vacío si no hay cuentas
+            if (filteredAccounts.length === 0) {
+                tableBody.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+            
+            // Ocultar estado vacío y mostrar cuentas
+            emptyState.classList.add('hidden');
+            tableBody.innerHTML = '';
+            
+            filteredAccounts.forEach(account => {
+                const row = document.createElement('tr');
+                
+                // Determinar clase de estado
+                let statusClass = '';
+                let statusText = '';
+                
+                switch (account.status) {
+                    case 'active':
+                        statusClass = 'status-active';
+                        statusText = 'Activa';
+                        break;
+                    case 'expiring':
+                        statusClass = 'status-expiring';
+                        statusText = 'Por vencer';
+                        break;
+                    case 'expired':
+                        statusClass = 'status-expired';
+                        statusText = 'Expirada';
+                        break;
+                }
+                
+                // Formatear fechas
+                const deliveryDate = formatDate(account.deliveryDate);
+                const expirationDate = formatDate(account.expirationDate);
+                
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="font-medium text-gray-900 dark:text-white">${account.clientName}</div>
+                        ${account.clientEmail ? `<div class="text-sm text-gray-500 dark:text-gray-400">${account.clientEmail}</div>` : ''}
+    			${account.clientPhone ? `<div class="text-sm text-gray-500 dark:text-gray-400">${account.clientPhone}</div>` : ''}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white">${account.platform}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white">
+                        ${account.accountType}
+                        ${account.accountType === 'Perfil' && account.profileNumber ? ` (${account.profileNumber})` : ''}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white">${deliveryDate}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white">${expirationDate}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white">${account.daysRemaining}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">
+                            ${statusText}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div class="flex space-x-2">
+                            <button data-id="${account.id}" class="view-btn text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button data-id="${account.id}" class="edit-btn text-yellow-600 hover:text-yellow-900 dark:text-yellow-400 dark:hover:text-yellow-300">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button data-id="${account.id}" class="delete-btn text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                
+                tableBody.appendChild(row);
+            });
+            
+            // Agregar eventos a los botones de acción
+            document.querySelectorAll('.view-btn').forEach(btn => {
+                btn.addEventListener('click', () => viewAccount(btn.dataset.id));
+            });
+            
+            document.querySelectorAll('.edit-btn').forEach(btn => {
+                btn.addEventListener('click', () => editAccount(btn.dataset.id));
+            });
+            
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', () => openDeleteModal(btn.dataset.id));
+            });
+            
+            // Actualizar dashboard
+            updateDashboard();
+        }
+        
+        function updateDashboard() {
+            // Calcular estadísticas
+            const totalAccounts = accounts.length;
+            let activeAccounts = 0;
+            let expiringAccounts = 0;
+            let expiredAccounts = 0;
+            
+            accounts.forEach(account => {
+                updateAccountStatus(account);
+                
+                switch (account.status) {
+                    case 'active':
+                        activeAccounts++;
+                        break;
+                    case 'expiring':
+                        expiringAccounts++;
+                        break;
+                    case 'expired':
+                        expiredAccounts++;
+                        break;
+                }
+            });
+            
+            // Actualizar contadores
+            document.getElementById('total-accounts').textContent = totalAccounts;
+            document.getElementById('active-accounts').textContent = activeAccounts;
+            document.getElementById('expiring-accounts').textContent = expiringAccounts;
+            document.getElementById('expired-accounts').textContent = expiredAccounts;
+        }
+        
+        function updatePlatformDropdowns() {
+            const platformSelects = document.querySelectorAll('#platform, #platform-filter');
+            
+            platformSelects.forEach(select => {
+                const isFilter = select.id === 'platform-filter';
+                const currentValue = select.value;
+                
+                // Limpiar opciones existentes excepto la primera
+                while (select.options.length > (isFilter ? 1 : 1)) {
+                    select.remove(1);
+                }
+                
+                // Agregar plataformas
+                platforms.forEach(platform => {
+                    const option = document.createElement('option');
+                    option.value = platform;
+                    option.textContent = platform;
+                    select.appendChild(option);
+                });
+                
+                // Restaurar valor seleccionado si es posible
+                if (currentValue && platforms.includes(currentValue)) {
+                    select.value = currentValue;
+                }
+            });
+        }
+        
+        // Funciones de gestión de cuentas
+        function openNewAccountModal() {
+            document.getElementById('modal-title').textContent = 'Nueva Cuenta';
+            document.getElementById('account-form').reset();
+            document.getElementById('account-id').value = '';
+            document.getElementById('delivery-date').valueAsDate = new Date();
+            document.getElementById('profile-number-container').classList.add('hidden');
+            document.getElementById('replacement-reason-container').classList.add('hidden');
+            document.getElementById('expiration-date').value = '';
+            currentAccountId = null;
+            
+            document.getElementById('account-modal').classList.remove('hidden');
+        }
+        
+        function closeAccountModal() {
+            document.getElementById('account-modal').classList.add('hidden');
+        }
+        
+        function saveAccount(e) {
+            e.preventDefault();
+            
+            // Recopilar datos del formulario
+            const accountId = document.getElementById('account-id').value || generateId();
+            const clientName = document.getElementById('client-name').value;
+            const clientEmail = document.getElementById('client-email').value;
+	    const clientPhone = document.getElementById('client-phone').value;
+            const password = document.getElementById('account-password').value;
+            const accountType = document.getElementById('account-type').value;
+            const profileNumber = accountType === 'Perfil' ? document.getElementById('profile-number').value : null;
+            const platform = document.getElementById('platform').value;
+            const deliveryDate = document.getElementById('delivery-date').value;
+            const durationValue = document.getElementById('duration-value').value;
+            const durationUnit = document.getElementById('duration-unit').value;
+            const expirationDate = calculateExpirationDateValue(deliveryDate, durationValue, durationUnit);
+            const replaced = document.querySelector('input[name="replaced"]:checked').value === 'yes';
+            const replacementReason = replaced ? document.getElementById('replacement-reason').value : '';
+            
+            // Crear o actualizar cuenta
+            const account = {
+                id: accountId,
+                clientName,
+                clientEmail,
+  		clientPhone,
+                password,
+                accountType,
+                profileNumber,
+                platform,
+                deliveryDate,
+                durationValue,
+                durationUnit,
+                expirationDate,
+                replaced,
+                replacementReason,
+                daysRemaining: calculateDaysRemaining(expirationDate),
+                status: 'active' // Se actualizará después
+            };
+            
+            updateAccountStatus(account);
+            
+            if (currentAccountId) {
+                // Actualizar cuenta existente
+                const index = accounts.findIndex(acc => acc.id === currentAccountId);
+                if (index !== -1) {
+                    accounts[index] = account;
+                }
+            } else {
+                // Agregar nueva cuenta
+                accounts.push(account);
+            }
+            
+            // Guardar y actualizar UI
+            saveAccounts();
+            closeAccountModal();
+            renderAccounts();
+            showNotification(currentAccountId ? 'Cuenta actualizada correctamente' : 'Cuenta agregada correctamente');
+        }
+        
+        function editAccount(id) {
+            const account = accounts.find(acc => acc.id === id);
+            if (!account) return;
+            
+            currentAccountId = id;
+            document.getElementById('modal-title').textContent = 'Editar Cuenta';
+            
+            // Llenar formulario
+            document.getElementById('account-id').value = account.id;
+            document.getElementById('client-name').value = account.clientName;
+            document.getElementById('client-email').value = account.clientEmail || '';
+            document.getElementById('account-password').value = account.password || '';
+            document.getElementById('account-type').value = account.accountType;
+            
+            if (account.accountType === 'Perfil') {
+                document.getElementById('profile-number-container').classList.remove('hidden');
+                document.getElementById('profile-number').value = account.profileNumber || '';
+            } else {
+                document.getElementById('profile-number-container').classList.add('hidden');
+            }
+            
+            document.getElementById('platform').value = account.platform;
+            document.getElementById('delivery-date').value = account.deliveryDate;
+            document.getElementById('duration-value').value = account.durationValue;
+            document.getElementById('duration-unit').value = account.durationUnit;
+            document.getElementById('expiration-date').value = account.expirationDate;
+            
+            // Reposición
+            document.querySelector(`input[name="replaced"][value="${account.replaced ? 'yes' : 'no'}"]`).checked = true;
+            if (account.replaced) {
+                document.getElementById('replacement-reason-container').classList.remove('hidden');
+                document.getElementById('replacement-reason').value = account.replacementReason || '';
+            } else {
+                document.getElementById('replacement-reason-container').classList.add('hidden');
+            }
+            
+            document.getElementById('account-modal').classList.remove('hidden');
+        }
+        
+        function viewAccount(id) {
+            const account = accounts.find(acc => acc.id === id);
+            if (!account) return;
+            
+            // Llenar datos
+            document.getElementById('view-client-name').textContent = account.clientName;
+            document.getElementById('view-client-email').textContent = account.clientEmail || 'No especificado';
+	    document.getElementById('view-client-phone').textContent = account.clientPhone || 'No especificado';
+            document.getElementById('view-platform').textContent = account.platform;
+            document.getElementById('view-account-type').textContent = account.accountType;
+            
+            if (account.accountType === 'Perfil' && account.profileNumber) {
+                document.getElementById('view-profile-container').classList.remove('hidden');
+                document.getElementById('view-profile-number').textContent = account.profileNumber;
+            } else {
+                document.getElementById('view-profile-container').classList.add('hidden');
+            }
+            
+            document.getElementById('view-password').textContent = account.password || 'No especificada';
+            document.getElementById('view-delivery-date').textContent = formatDate(account.deliveryDate);
+            document.getElementById('view-expiration-date').textContent = formatDate(account.expirationDate);
+            document.getElementById('view-days-remaining').textContent = account.daysRemaining;
+            
+            // Estado
+            const viewStatus = document.getElementById('view-status');
+            viewStatus.textContent = account.status === 'active' ? 'Activa' : 
+                                    account.status === 'expiring' ? 'Por vencer' : 'Expirada';
+            viewStatus.className = 'mt-1 inline-block px-2 py-1 rounded-full text-xs font-medium';
+            viewStatus.classList.add(account.status === 'active' ? 'status-active' : 
+                                    account.status === 'expiring' ? 'status-expiring' : 'status-expired');
+            
+            // Reposición
+            if (account.replaced) {
+                document.getElementById('view-replacement-container').classList.remove('hidden');
+                document.getElementById('view-replacement-reason').textContent = account.replacementReason || 'Sin detalles';
+            } else {
+                document.getElementById('view-replacement-container').classList.add('hidden');
+            }
+            
+            document.getElementById('view-account-modal').classList.remove('hidden');
+        }
+        
+        function openDeleteModal(id) {
+            deleteAccountId = id;
+            document.getElementById('delete-modal').classList.remove('hidden');
+        }
+        
+        function closeDeleteModal() {
+            document.getElementById('delete-modal').classList.add('hidden');
+            deleteAccountId = null;
+        }
+        
+        function deleteAccount() {
+            if (!deleteAccountId) return;
+            
+            accounts = accounts.filter(account => account.id !== deleteAccountId);
+            saveAccounts();
+            closeDeleteModal();
+            renderAccounts();
+	    updateDashboard();
+            showNotification('Cuenta eliminada correctamente');
+        }
+        
+        function closeViewModal() {
+            document.getElementById('view-account-modal').classList.add('hidden');
+        }
+        
+        function copyPassword() {
+            const password = document.getElementById('view-password').textContent;
+            if (password && password !== 'No especificada') {
+                navigator.clipboard.writeText(password)
+                    .then(() => {
+                        showNotification('Contraseña copiada al portapapeles');
+                    })
+                    .catch(err => {
+                        console.error('Error al copiar: ', err);
+                    });
+            }
+        }
+        
+        // Funciones de plataforma
+        function openPlatformModal() {
+            document.getElementById('platform-form').reset();
+            document.getElementById('platform-modal').classList.remove('hidden');
+        }
+        
+        function closePlatformModal() {
+            document.getElementById('platform-modal').classList.add('hidden');
+        }
+        
+        function addPlatform(e) {
+            e.preventDefault();
+            
+            const newPlatform = document.getElementById('new-platform').value.trim();
+            if (!newPlatform) return;
+            
+            // Verificar si ya existe
+            if (!platforms.includes(newPlatform)) {
+                platforms.push(newPlatform);
+                localStorage.setItem('platforms', JSON.stringify(platforms));
+                updatePlatformDropdowns();
+                showNotification('Plataforma agregada correctamente');
+            } else {
+                showNotification('Esta plataforma ya existe', 'warning');
+            }
+            
+            closePlatformModal();
+        }
+        
+        // Funciones de filtrado
+        function filterExpiringAccounts() {
+            document.getElementById('platform-filter').value = '';
+            document.getElementById('type-filter').value = '';
+            document.getElementById('search-input').value = '';
+            
+            // Filtrar solo cuentas por vencer
+            const tableBody = document.getElementById('accounts-table-body');
+            tableBody.innerHTML = '';
+            
+            const expiringAccounts = accounts.filter(account => {
+                updateAccountStatus(account);
+                return account.status === 'expiring';
+            });
+            
+            if (expiringAccounts.length === 0) {
+                document.getElementById('empty-state').classList.remove('hidden');
+                return;
+            }
+            
+            document.getElementById('empty-state').classList.add('hidden');
+            
+            // Ordenar por días restantes (ascendente)
+            expiringAccounts.sort((a, b) => a.daysRemaining - b.daysRemaining);
+            
+            expiringAccounts.forEach(account => {
+                const row = document.createElement('tr');
+                
+                // Formatear fechas
+                const deliveryDate = formatDate(account.deliveryDate);
+                const expirationDate = formatDate(account.expirationDate);
+                
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="font-medium text-gray-900 dark:text-white">${account.clientName}</div>
+                        ${account.clientEmail ? `<div class="text-sm text-gray-500 dark:text-gray-400">${account.clientEmail}</div>` : ''}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white">${account.platform}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white">
+                        ${account.accountType}
+                        ${account.accountType === 'Perfil' && account.profileNumber ? ` (${account.profileNumber})` : ''}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white">${deliveryDate}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white">${expirationDate}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white">${account.daysRemaining}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full status-expiring">
+                            Por vencer
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div class="flex space-x-2">
+                            <button data-id="${account.id}" class="view-btn text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button data-id="${account.id}" class="edit-btn text-yellow-600 hover:text-yellow-900 dark:text-yellow-400 dark:hover:text-yellow-300">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button data-id="${account.id}" class="delete-btn text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                
+                tableBody.appendChild(row);
+            });
+            
+            // Agregar eventos a los botones de acción
+            document.querySelectorAll('.view-btn').forEach(btn => {
+                btn.addEventListener('click', () => viewAccount(btn.dataset.id));
+            });
+            
+            document.querySelectorAll('.edit-btn').forEach(btn => {
+                btn.addEventListener('click', () => editAccount(btn.dataset.id));
+            });
+            
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', () => openDeleteModal(btn.dataset.id));
+            });
+            
+            // Actualizar dashboard
+            updateDashboard();
+        }
+        
+        // Funciones de utilidad
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+        }
+        
+        function formatDate(dateString) {
+            if (!dateString) return 'No especificada';
+            
+            const date = new Date(dateString);
+            return date.toLocaleDateString('es-ES', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+        }
+        
+        function calculateExpirationDate() {
+            const deliveryDate = document.getElementById('delivery-date').value;
+            const durationValue = document.getElementById('duration-value').value;
+            const durationUnit = document.getElementById('duration-unit').value;
+            
+            if (!deliveryDate || !durationValue) {
+                document.getElementById('expiration-date').value = '';
+                return;
+            }
+            
+            const expirationDate = calculateExpirationDateValue(deliveryDate, durationValue, durationUnit);
+            document.getElementById('expiration-date').value = expirationDate;
+        }
+        
+        function calculateExpirationDateValue(deliveryDate, durationValue, durationUnit) {
+            if (!deliveryDate || !durationValue) return '';
+            
+            const date = new Date(deliveryDate);
+            
+            switch (durationUnit) {
+                case 'days':
+                    date.setDate(date.getDate() + parseInt(durationValue));
+                    break;
+                case 'weeks':
+                    date.setDate(date.getDate() + (parseInt(durationValue) * 7));
+                    break;
+                case 'months':
+                    date.setMonth(date.getMonth() + parseInt(durationValue));
+                    break;
+                case 'years':
+                    date.setFullYear(date.getFullYear() + parseInt(durationValue));
+                    break;
+            }
+            
+            // Formatear fecha como YYYY-MM-DD para input type="date"
+            return date.toISOString().split('T')[0];
+        }
+        
+        function calculateDaysRemaining(expirationDate) {
+            if (!expirationDate) return 0;
+            
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            const expDate = new Date(expirationDate);
+            expDate.setHours(0, 0, 0, 0);
+            
+            const diffTime = expDate - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            return diffDays;
+        }
+        
+        function updateAccountStatus(account) {
+            const daysRemaining = calculateDaysRemaining(account.expirationDate);
+            account.daysRemaining = daysRemaining;
+            
+            if (daysRemaining < 0) {
+                account.status = 'expired';
+            } else if (daysRemaining <= 3) {
+                account.status = 'expiring';
+            } else {
+                account.status = 'active';
+            }
+            
+            return account;
+        }
+        
+        function toggleProfileNumberField() {
+            const accountType = document.getElementById('account-type').value;
+            const profileNumberContainer = document.getElementById('profile-number-container');
+            
+            if (accountType === 'Perfil') {
+                profileNumberContainer.classList.remove('hidden');
+            } else {
+                profileNumberContainer.classList.add('hidden');
+            }
+        }
+        
+        function toggleReplacementReason() {
+            const isReplaced = document.querySelector('input[name="replaced"]:checked').value === 'yes';
+            const replacementReasonContainer = document.getElementById('replacement-reason-container');
+            
+            if (isReplaced) {
+                replacementReasonContainer.classList.remove('hidden');
+            } else {
+                replacementReasonContainer.classList.add('hidden');
+            }
+        }
+        
+        function saveAccounts() {
+            localStorage.setItem('streamingAccounts', JSON.stringify(accounts));
+        }
+        
+        function showNotification(message, type = 'success') {
+            const container = document.getElementById('notification-container');
+            const notification = document.createElement('div');
+            
+            notification.className = `notification p-4 rounded-lg shadow-lg ${
+                type === 'success' ? 'bg-green-500' : 
+                type === 'warning' ? 'bg-yellow-500' : 
+                type === 'error' ? 'bg-red-500' : 'bg-blue-500'
+            } text-white`;
+            
+            notification.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas ${
+                        type === 'success' ? 'fa-check-circle' : 
+                        type === 'warning' ? 'fa-exclamation-circle' : 
+                        type === 'error' ? 'fa-times-circle' : 'fa-info-circle'
+                    } mr-2"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            container.appendChild(notification);
+            
+            // Eliminar después de la animación
+            setTimeout(() => {
+                notification.remove();
+            }, 5000);
+        }
+        
+        function checkExpiringAccounts() {
+            const expiringAccounts = accounts.filter(account => {
+                updateAccountStatus(account);
+                return account.status === 'expiring';
+            });
+            
+            if (expiringAccounts.length > 0) {
+                showNotification(`Tienes ${expiringAccounts.length} cuenta(s) por vencer en los próximos 3 días`, 'warning');
+            }
+            
+            // Guardar cuentas actualizadas
+            saveAccounts();
+        }
+    </script>
+</body>
+</html>
