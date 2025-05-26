@@ -210,7 +210,17 @@ export function AccountForm({ account, onSubmit, onCancel, isLoading }: AccountF
                 <SelectItem value="Spotify">Spotify</SelectItem>
               </SelectContent>
             </Select>
-            <Button type="button" variant="outline" size="icon">
+            <Button 
+              type="button" 
+              variant="outline" 
+              size="icon"
+              onClick={() => {
+                const newPlatform = prompt("Ingresa el nombre de la nueva plataforma:");
+                if (newPlatform && newPlatform.trim()) {
+                  handleInputChange("platform", newPlatform.trim());
+                }
+              }}
+            >
               <Plus className="h-4 w-4" />
             </Button>
           </div>
