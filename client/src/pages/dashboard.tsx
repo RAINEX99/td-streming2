@@ -18,8 +18,8 @@ export default function Dashboard() {
   const [showAccountForm, setShowAccountForm] = useState(false);
   const [editingAccount, setEditingAccount] = useState<StreamingAccount | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [platformFilter, setPlatformFilter] = useState("");
-  const [typeFilter, setTypeFilter] = useState("");
+  const [platformFilter, setPlatformFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [theme, setTheme] = useState("light");
   
   const { toast } = useToast();

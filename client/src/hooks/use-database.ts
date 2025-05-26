@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 export function useDatabase() {
-  const [dbStatus, setDbStatus] = useState<'connected' | 'connecting' | 'disconnected'>('disconnected');
+  const [dbStatus, setDbStatus] = useState<'connected' | 'connecting' | 'disconnected'>('connecting');
   const [isConnecting, setIsConnecting] = useState(false);
 
   // Health check query
@@ -13,14 +13,16 @@ export function useDatabase() {
       if (!response.ok) throw new Error('Database connection failed');
       return response.json();
     },
-    refetchInterval: 30000, // Check every 30 seconds
-    retry: false,
+    refetchInterval: 10000, // Check every 10 seconds
+    retry: 2,
   });
 
   // Update status based on health check
   useEffect(() => {
-    if (healthQuery.isLoading) {
+    if (healthQuery.isLoading && !healthQuery.data) {
       setDbStatus('connecting');
+    } else if (healthQuery.error) {
+      setDbStatus('disconnected');
     } else if (healthQuery.data?.status === 'connected') {
       setDbStatus('connected');
     } else {
